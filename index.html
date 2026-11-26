@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Singularity: City Eater</title>
+  <link rel="stylesheet" href="./src/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- 3D WebGL Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- Virtual Joystick for Touch / Mouse Drag -->
+  <div id="joystick-base">
+    <div id="joystick-thumb"></div>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <!-- Top Bar: Mass Meter, Timer, Leaderboard -->
+    <div class="top-bar">
+      <!-- Player Status -->
+      <div class="player-status-card">
+        <div id="tier-badge" class="tier-badge tier-1">Tier 1: Scavenger</div>
+        <div id="mass-text" class="mass-text">0 Mass</div>
+        <div class="mass-bar-bg">
+          <div id="mass-fill" class="mass-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- 90-Second Match Countdown Timer -->
+      <div class="timer-container">
+        <div class="timer-box">
+          <svg class="timer-svg" viewBox="0 0 64 64">
+            <circle class="timer-svg-bg" cx="32" cy="32" r="26"></circle>
+            <circle id="timer-ring" class="timer-svg-progress" cx="32" cy="32" r="26"></circle>
+          </svg>
+          <span id="timer-text" class="timer-text">1:30</span>
+        </div>
+      </div>
+
+      <!-- Real-Time Top-6 Leaderboard -->
+      <div class="leaderboard-card">
+        <div class="lb-header">Live Leaderboard</div>
+        <div id="leaderboard-list" class="lb-list">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Combo Streak Bar -->
+    <div id="combo-container">
+      <div id="combo-multiplier" class="combo-text">x2 FEAST!</div>
+      <div class="combo-bar-bg">
+        <div id="combo-bar-fill" class="combo-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Alert / Devour Notification Banner -->
+    <div id="alert-banner"></div>
+
+    <!-- Respawn Penalty Banner -->
+    <div id="respawn-banner">
+      <h2>💀 DEVOURED!</h2>
+      <p>Respawning in <span id="respawn-seconds">3</span>s...</p>
+    </div>
+
+    <!-- Floating 2D/3D Score Numbers Container -->
+    <div id="popup-container"></div>
+
+    <!-- Bottom Controls & Audio Bar -->
+    <div class="bottom-bar">
+      <div class="control-pill">WASD / Arrow Keys or Mouse Drag to Steer</div>
+      <div class="bottom-action-group">
+        <button id="home-btn" class="hud-circle-btn" title="Home / Main Menu">🏠</button>
+        <button id="mute-btn" class="hud-circle-btn mute-btn" title="Toggle Sound">🔊</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Menu Modal -->
+  <div id="start-modal" class="modal-overlay active">
+    <div class="modal-card">
+      <h1 class="game-title">Singularity</h1>
+      <p class="game-subtitle">City Eater 3D</p>
+
+      <div class="input-group">
+        <label class="input-label" for="player-name-input">Gamer Tag</label>
+        <input type="text" id="player-name-input" class="text-input" placeholder="Enter your name" maxlength="14" value="VortexKing">
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Neon Singularity Rim Color</label>
+        <div class="skin-picker">
+          <div class="color-swatch selected" data-color="00f3ff" style="background:#00f3ff; box-shadow:0 0 10px #00f3ff;" title="Electric Cyan"></div>
+          <div class="color-swatch" data-color="b026ff" style="background:#b026ff; box-shadow:0 0 10px #b026ff;" title="Neon Violet"></div>
+          <div class="color-swatch" data-color="00e676" style="background:#00e676; box-shadow:0 0 10px #00e676;" title="Toxic Emerald"></div>
+          <div class="color-swatch" data-color="ff9100" style="background:#ff9100; box-shadow:0 0 10px #ff9100;" title="Solar Amber"></div>
+          <div class="color-swatch" data-color="ff007f" style="background:#ff007f; box-shadow:0 0 10px #ff007f;" title="Rose Magenta"></div>
+          <div class="color-swatch" data-color="ffffff" style="background:#ffffff; box-shadow:0 0 10px #ffffff;" title="Cosmic White"></div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Moeilijkheidsgraad / Difficulty</label>
+        <div class="difficulty-picker">
+          <button type="button" class="diff-btn" data-diff="easy">
+            <span class="diff-dot green"></span>
+            <span class="diff-title">Casual</span>
+            <span class="diff-sub">Rustig</span>
+          </button>
+          <button type="button" class="diff-btn selected" data-diff="normal">
+            <span class="diff-dot yellow"></span>
+            <span class="diff-title">Arcade</span>
+            <span class="diff-sub">Normaal</span>
+          </button>
+          <button type="button" class="diff-btn" data-diff="hard">
+            <span class="diff-dot red"></span>
+            <span class="diff-title">Chaos</span>
+            <span class="diff-sub">Moeilijk</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="controls-tips">
+        <div class="tip-item">
+          <b>Mouse / Touch</b>
+          Drag to steer hole
+        </div>
+        <div class="tip-item">
+          <b>WASD / Keys</b>
+          Direct movement
+        </div>
+        <div class="tip-item">
+          <b>90 Seconds</b>
+          Swallow & dominate
+        </div>
+      </div>
+
+      <button id="start-btn" class="btn-primary">Devour City</button>
+    </div>
+  </div>
+
+  <!-- End Game / Summary Modal -->
+  <div id="summary-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h1 id="final-rank" class="game-title">#1</h1>
+      <p id="final-title" class="game-subtitle">Apex Singularity</p>
+
+      <!-- 3D-style Podium -->
+      <div class="podium-section">
+        <div class="podium-col second">
+          <div id="podium-2" class="podium-name">Player 2</div>
+          <div class="podium-pillar">2</div>
+        </div>
+        <div class="podium-col first">
+          <div id="podium-1" class="podium-name">Winner</div>
+          <div class="podium-pillar">🏆 1</div>
+        </div>
+        <div class="podium-col third">
+          <div id="podium-3" class="podium-name">Player 3</div>
+          <div class="podium-pillar">3</div>
+        </div>
+      </div>
+
+      <!-- Match Stats -->
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Objects Devoured</div>
+          <div id="stat-swallowed" class="stat-val">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Final Mass</div>
+          <div id="stat-mass" class="stat-val">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Largest Devoured</div>
+          <div id="stat-largest" class="stat-val">None</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Rivals Devoured</div>
+          <div id="stat-rivals" class="stat-val">0</div>
+        </div>
+      </div>
+
+      <div class="modal-btn-row">
+        <button id="restart-btn" class="btn-primary">Play Again</button>
+        <button id="summary-home-btn" class="btn-secondary">🏠 Home</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
